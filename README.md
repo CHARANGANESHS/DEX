@@ -23,4 +23,4 @@ To run the DEX app, execute the following commands:
 ## Tasks
 
 - Fill the tokens page
-- Need to create a MORALIS API key
+- Need to create a MORALIS API key from [a link](https://admin.moralis.io/)
