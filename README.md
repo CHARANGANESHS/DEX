@@ -11,11 +11,13 @@ To use the DEX app, you need to have a MetaMask account set up.
 To run the DEX app, execute the following commands:
 
 1. In the backend directory:
+
     ```bash
     node index.js
     ```
 
 2. In the frontend directory:
+
     ```bash
     npm run start
     ```
@@ -23,4 +25,4 @@ To run the DEX app, execute the following commands:
 ## Tasks
 
 - Fill the tokens page
-- Need to create a MORALIS API key from [a link](https://admin.moralis.io/)
+- Need to create a MORALIS API key from [this link](https://admin.moralis.io/)
