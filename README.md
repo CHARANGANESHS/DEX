@@ -1,4 +1,4 @@
-# DEX# DEX App
+# DEX App
 
 The DEX app is a decentralized exchange platform that allows users to trade cryptocurrencies directly from their wallets. 
 
