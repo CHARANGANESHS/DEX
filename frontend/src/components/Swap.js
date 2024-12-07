@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Input, Popover, Radio, Modal, message } from "antd";
-import { ArrowDownOutlined, DownOutlined, SettingOutlined } from "@ant-design/icons";
-import tokenList from "../tokenList.json";
-import axios from "axios";
-import { useSendTransaction, useWaitForTransaction } from "wagmi";
+import React, { useState, useEffect } from 'react'
+import { Input, Popover, Radio, Modal, message} from 'antd';
+import { ArrowDownOutlined, DownOutlined, SettingOutlined, } from '@ant-design/icons';
+import tokenList from '../tokenList.json';
+import axios from 'axios';
+import { useSendTransaction, useWaitForTransaction } from 'wagmi';
+
 
 function Swap(props) {
   const { address, isConnected } = props;
@@ -19,8 +20,8 @@ function Swap(props) {
   const [txDetails, setTxDetails] = useState({
     to: null,
     data: null,
-    value: null,
-  });
+    value: null
+  })
 
   const { data, sendTransaction } = useSendTransaction({
     request: {
@@ -28,23 +29,26 @@ function Swap(props) {
       to: String(txDetails.to),
       data: String(txDetails.data),
       value: String(txDetails.value),
-    },
-  });
+    }
+  })
 
   const { isLoading, isSuccess } = useWaitForTransaction({
     hash: data?.hash,
-  });
+  })
 
-  const handleSlippageChange = (e) => setSlippage(e.target.value);
+  const handleSlippageChange = (e) => {
+    setSlippage(e.target.value);
+  }
 
   const changeAmount = (e) => {
     setTokenOneAmount(e.target.value);
     if (e.target.value && prices) {
       setTokenTwoAmount((e.target.value * prices.ratio).toFixed(2));
-    } else {
+    }
+    else {
       setTokenTwoAmount(null);
     }
-  };
+  }
 
   const switchTokens = () => {
     setPrices(null);
@@ -55,12 +59,11 @@ function Swap(props) {
     setTokenOne(two);
     setTokenTwo(one);
     fetchPrices(two.address, one.address);
-  };
-
-  const openModal = (token) => {
+  }
+  function openModal(token) {
     setChangeToken(token);
     setIsOpen(true);
-  };
+  }
 
   const modifyToken = (index) => {
     setPrices(null);
@@ -73,108 +76,78 @@ function Swap(props) {
       setTokenTwo(tokenList[index]);
       fetchPrices(tokenOne.address, tokenList[index].address);
     }
+
     setIsOpen(false);
-  };
+  }
+
 
   const fetchPrices = async (one, two) => {
-    try {
-      const response = await axios.get(`http://localhost:3001/tokenPrice`, {
-        params: { addressOne: one, addressTwo: two },
-      });
-      console.log(response.data);
-      setPrices(response.data);
-    } catch (error) {
-      console.error("Error fetching token prices:", error.message);
-      messageApi.open({
-        type: "error",
-        content: "Failed to fetch token prices. Please try again.",
-      });
+    const response = await axios.get(`http://localhost:3001/tokenPrice`, {
+      params: { addressOne: one, addressTwo: two }
     }
-  };
+    );
+    console.log(response.data);
+    setPrices(response.data);
+  }
 
   const fetchDexSwap = async () => {
-    try {
-      const allowance = await axios.get(`/proxy/1inch/v6.0/1/approve/allowance`, {
-        params: {
-          tokenAddress: tokenOne.address,
-          walletAddress: address,
-        },
-      });
+    const allowance = await axios.get(`https://api.1inch.io/v6.0/1/approve/allowance?tokenAddress=${tokenOne.address}&walletAddress=${address}`)
 
-      if (Number(allowance.data.allowance) <= 0) {
-        const approve = await axios.get(`/proxy/1inch/v6.0/1/approve/transaction`, {
-          params: { tokenAddress: tokenOne.address },
-        });
+    if (allowance.data.allowance < "0"){
+      const approve = await axios.get(`https://api.1inch.io/v6.0/1/approve/transaction?tokenAddress=${tokenOne.address}`)
 
-        setTxDetails(approve.data);
-        console.log("Not Approved");
-        return;
-      }
-
-      const amountInWei = tokenOneAmount.padEnd(
-        tokenOne.decimals + String(tokenOneAmount).length,
-        "0"
-      );
-
-      const tx = await axios.get(`/proxy/1inch/v6.0/1/swap`, {
-        params: {
-          fromTokenAddress: tokenOne.address,
-          toTokenAddress: tokenTwo.address,
-          amount: amountInWei,
-          fromAddress: address,
-          slippage,
-        },
-      });
-
-      const decimals = Number(`1E${tokenTwo.decimals}`);
-      setTokenTwoAmount((Number(tx.data.toTokenAmount) / decimals).toFixed(2));
-      setTxDetails(tx.data.tx);
-    } catch (error) {
-      console.error("Error during fetchDexSwap:", error.message);
-      messageApi.open({
-        type: "error",
-        content: "Swap failed. Please try again.",
-      });
+      setTxDetails(approve.data);
+      console.log("Not Approved")
+      return;
     }
-  };
+
+    const tx = await axios.get(`https://api.1inch.io/v6.0/1/swap?fromTokenAddress=${tokenOne.address}&toTokenAddress=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(tokenOne.decimals + tokenOneAmount.length, '0')}&fromAddress=${address}&slippage=${slippage}`)
+
+    let decimals = Number(`1E${tokenTwo.decimals}`);
+    setTokenTwoAmount((Number(tx.data.toTokenAmount) / decimals).toFixed(2));
+
+    setTxDetails(tx.data.tx);
+
+  }
 
   useEffect(() => {
     fetchPrices(tokenList[0].address, tokenList[1].address);
-  }, []);
+  }, [])
 
   useEffect(() => {
-    if (txDetails.to && isConnected) {
+    if(txDetails.to && isConnected){
       sendTransaction();
     }
-  }, [txDetails]);
+  }, [txDetails])
 
   useEffect(() => {
     messageApi.destroy();
     if (isLoading) {
       messageApi.open({
-        type: "loading",
-        content: "Transaction is Pending...",
+        type: 'loading',
+        content: 'Transaction is Pending...',
         duration: 0,
-      });
+      })
     }
-  }, [isLoading]);
+  }, [isLoading])
 
   useEffect(() => {
     messageApi.destroy();
-    if (isSuccess) {
+    if (isSuccess){
       messageApi.open({
-        type: "success",
-        content: "Transaction Successful!",
+        type: 'success',
+        content: 'Transaction Successful!',
         duration: 1.5,
-      });
-    } else if (txDetails.to) {
-      messageApi.open({
-        type: "error",
-        content: "Transaction Failed!",
-        duration: 1.5,
-      });
+      })
     }
-  }, [isSuccess]);
+    else if(txDetails.to){
+      messageApi.open({
+        type: 'error',
+        content: 'Transaction Failed!',
+        duration: 1.5,
+      })
+    }
+  }, [isSuccess])
 
   const settings = (
     <>
@@ -187,58 +160,60 @@ function Swap(props) {
         </Radio.Group>
       </div>
     </>
-  );
+  )
 
   return (
     <>
       {contextHolder}
-      <Modal open={isOpen} footer={null} onCancel={() => setIsOpen(false)} title="Select a token">
-        <div className="modalContent">
-          {tokenList?.map((e, i) => (
-            <div className="tokenChoice" key={i} onClick={() => modifyToken(i)}>
-              <img src={e.img} alt={e.ticker} className="tokenLogo" />
-              <div className="tokenChoiceNames">
-                <div className="tokenName">{e.name}</div>
-                <div className="tokenTicker">{e.ticker}</div>
+      <Modal open={isOpen} footer={null} onCancel={() => setIsOpen(false)} title="Select a token" >
+        <div className='modalContet'>
+          {tokenList?.map((e, i) => {
+            return (
+              <div
+                className='tokenChoice'
+                key={i}
+                onClick={() => { modifyToken(i) }}
+              >
+                <img src={e.img} alt={e.ticker} className='tokenLogo' />
+                <div className='tokenChoiceNames'>
+                  <div className='tokenName'>{e.name}</div>
+                  <div className='tokenTicker'>{e.ticker}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Modal>
-      <div className="tradeBox">
-        <div className="tradeBoxHeader">
+      <div className='tradeBox' >
+        <div className='tradeBoxHeader'>
           <h4>Swap</h4>
-          <Popover title="Settings" trigger="click" placement="bottomRight" content={settings}>
-            <SettingOutlined className="cog" />
+          <Popover title="Settings" trigger="click" placement='bottomRight' content={settings} >
+            <SettingOutlined className='cog'></SettingOutlined>
           </Popover>
         </div>
-        <div className="inputs">
-          <Input placeholder="0" value={tokenOneAmount} onChange={changeAmount} disabled={!prices} />
-          <Input placeholder="0" value={tokenTwoAmount} disabled={true} />
-          <div className="switchButton" onClick={switchTokens}>
-            <ArrowDownOutlined className="switchArrow" />
+        <div className='inputs'>
+          <Input placeholder='0' value={tokenOneAmount} onChange={changeAmount} disabled={!prices}></Input>
+          <Input placeholder='0' value={tokenTwoAmount} disabled={true}></Input>
+          <div className='switchButton' onClick={switchTokens}>
+            <ArrowDownOutlined className='switchArrow'></ArrowDownOutlined>
           </div>
-          <div className="assetOne" onClick={() => openModal(1)}>
-            <img src={tokenOne.img} alt="assetOneLogo" className="assetLogo" />
+          <div className='assetOne' onClick={() => openModal(1)}>
+            <img src={tokenOne.img} alt='assetOneLogo' className='assetLogo' />
             {tokenOne.ticker}
-            <DownOutlined />
+            <DownOutlined></DownOutlined>
           </div>
-          <div className="assetTwo" onClick={() => openModal(2)}>
-            <img src={tokenTwo.img} alt="assetTwoLogo" className="assetLogo" />
+
+          <div className='assetTwo' onClick={() => openModal(2)}>
+            <img src={tokenTwo.img} alt='assetTwoLogo' className='assetLogo' />
             {tokenTwo.ticker}
-            <DownOutlined />
+            <DownOutlined></DownOutlined>
           </div>
         </div>
-        <button
-          className="swapButton"
-          disabled={!tokenOneAmount || !isConnected}
-          onClick={fetchDexSwap}
-        >
-          Swap
-        </button>
+        <div className='swapButton' disabled={!tokenOneAmount || !isConnected} onClick={fetchDexSwap}>Swap</div>
       </div>
     </>
-  );
+
+  )
 }
 
-export default Swap;
+export default Swap
