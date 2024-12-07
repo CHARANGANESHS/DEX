@@ -90,7 +90,7 @@ function Swap(props) {
     setPrices(response.data);
   }
 
-  const fetchDexSwap = async => {
+  const fetchDexSwap = async () => {
     const allowance = await axios.get(`https://api.1inch.io/v6.0/1/approve/allowance?tokenAddress=${tokenOne.address}&walletAddress=${address}`)
 
     if (allowance.data.allowance < "0"){
@@ -101,7 +101,7 @@ function Swap(props) {
       return;
     }
 
-    const tx = await.get(`https://api.1inch.io/v6.0/1/swap?fromTokenAddress=${tokenOne.address}&toTokenAddress=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(tokenOne.decimals + tokenOneAmount.length, '0')}&fromAddress=${address}&slippage=${slippage}`)
+    const tx = await axios.get(`https://api.1inch.io/v6.0/1/swap?fromTokenAddress=${tokenOne.address}&toTokenAddress=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(tokenOne.decimals + tokenOneAmount.length, '0')}&fromAddress=${address}&slippage=${slippage}`)
 
     let decimals = Number(`1E${tokenTwo.decimals}`);
     setTokenTwoAmount((Number(tx.data.toTokenAmount) / decimals).toFixed(2));
