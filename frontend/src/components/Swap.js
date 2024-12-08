@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { Input, Popover, Radio, Modal, message} from 'antd';
-import { ArrowDownOutlined, DownOutlined, SettingOutlined, } from '@ant-design/icons';
-import tokenList from '../tokenList.json';
-import axios from 'axios';
-import { useSendTransaction, useWaitForTransaction } from 'wagmi';
-
+import React, { useState, useEffect } from "react";
+import { Input, Popover, Radio, Modal, message } from "antd";
+import {
+  ArrowDownOutlined,
+  DownOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
+import tokenList from "../tokenList.json";
+import { useSendTransaction, useWaitForTransaction } from "wagmi";
 
 function Swap(props) {
   const { address, isConnected } = props;
@@ -20,8 +22,8 @@ function Swap(props) {
   const [txDetails, setTxDetails] = useState({
     to: null,
     data: null,
-    value: null
-  })
+    value: null,
+  });
 
   const { data, sendTransaction } = useSendTransaction({
     request: {
@@ -29,28 +31,27 @@ function Swap(props) {
       to: String(txDetails.to),
       data: String(txDetails.data),
       value: String(txDetails.value),
-    }
-  })
+    },
+  });
 
   const { isLoading, isSuccess } = useWaitForTransaction({
     hash: data?.hash,
-  })
+  });
 
-  const handleSlippageChange = (e) => {
+  function handleSlippageChange(e) {
     setSlippage(e.target.value);
   }
 
-  const changeAmount = (e) => {
+  function changeAmount(e) {
     setTokenOneAmount(e.target.value);
     if (e.target.value && prices) {
       setTokenTwoAmount((e.target.value * prices.ratio).toFixed(2));
-    }
-    else {
+    } else {
       setTokenTwoAmount(null);
     }
   }
 
-  const switchTokens = () => {
+  function switchTokens() {
     setPrices(null);
     setTokenOneAmount(null);
     setTokenTwoAmount(null);
@@ -60,160 +61,163 @@ function Swap(props) {
     setTokenTwo(one);
     fetchPrices(two.address, one.address);
   }
-  function openModal(token) {
-    setChangeToken(token);
+
+  function openModal(asset) {
+    setChangeToken(asset);
     setIsOpen(true);
   }
 
-  const modifyToken = (index) => {
+  function modifyToken(i) {
     setPrices(null);
     setTokenOneAmount(null);
     setTokenTwoAmount(null);
     if (changeToken === 1) {
-      setTokenOne(tokenList[index]);
-      fetchPrices(tokenList[index].address, tokenTwo.address);
+      setTokenOne(tokenList[i]);
+      fetchPrices(tokenList[i].address, tokenTwo.address);
     } else {
-      setTokenTwo(tokenList[index]);
-      fetchPrices(tokenOne.address, tokenList[index].address);
+      setTokenTwo(tokenList[i]);
+      fetchPrices(tokenOne.address, tokenList[i].address);
     }
-
     setIsOpen(false);
   }
 
-
-  const fetchPrices = async (one, two) => {
-    const response = await axios.get(`http://localhost:3001/tokenPrice`, {
-      params: { addressOne: one, addressTwo: two }
-    }
-    );
-    console.log(response.data);
-    setPrices(response.data);
+  async function fetchPrices(one, two) {
+    const response = await fetch(`http://localhost:3001/tokenPrice?addressOne=${one}&addressTwo=${two}`);
+    const data = await response.json();
+    setPrices(data);
   }
 
-  const fetchDexSwap = async () => {
-    const allowance = await axios.get(`https://api.1inch.io/v6.0/1/approve/allowance?tokenAddress=${tokenOne.address}&walletAddress=${address}`)
-
-    if (allowance.data.allowance < "0"){
-      const approve = await axios.get(`https://api.1inch.io/v6.0/1/approve/transaction?tokenAddress=${tokenOne.address}`)
-
-      setTxDetails(approve.data);
-      console.log("Not Approved")
+  async function fetchDexSwap() {
+    const allowanceResponse = await fetch(
+      `http://localhost:3001/proxy/1inch/swap/v6.0/1/approve/allowance?tokenAddress=${tokenOne.address}&walletAddress=${address}`
+    );
+    const allowance = await allowanceResponse.json();
+    console.log("Allowance: ", allowance);
+    if (allowance.allowance === "0") {
+      const approveResponse = await fetch(
+        `http://localhost:3001/proxy/1inch/swap/v6.0/1/approve/transaction?tokenAddress=${tokenOne.address}`
+      );
+      const approve = await approveResponse.json();
+      console.log("Response: ", approve);
+      setTxDetails(approve);
+      console.log("Approval required");
       return;
     }
 
-    const tx = await axios.get(`https://api.1inch.io/v6.0/1/swap?fromTokenAddress=${tokenOne.address}&toTokenAddress=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(tokenOne.decimals + tokenOneAmount.length, '0')}&fromAddress=${address}&slippage=${slippage}`)
+    const swapResponse = await fetch(
+      `http://localhost:3001/proxy/1inch/v6.0/1/swap?src=${tokenOne.address}&dst=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(
+        tokenOne.decimals + tokenOneAmount.length,
+        "0"
+      )}&from=${address}&origin=${address}&slippage=${slippage}`
+    );
+    const swap = await swapResponse.json();
 
-    let decimals = Number(`1E${tokenTwo.decimals}`);
-    setTokenTwoAmount((Number(tx.data.toTokenAmount) / decimals).toFixed(2));
-
-    setTxDetails(tx.data.tx);
-
+    const decimals = Number(`1E${tokenTwo.decimals}`);
+    setTokenTwoAmount((Number(swap.toTokenAmount) / decimals).toFixed(2));
+    setTxDetails(swap.tx);
   }
 
   useEffect(() => {
     fetchPrices(tokenList[0].address, tokenList[1].address);
-  }, [])
+  }, []);
 
   useEffect(() => {
-    if(txDetails.to && isConnected){
+    if (txDetails.to && isConnected) {
       sendTransaction();
     }
-  }, [txDetails])
+  }, [txDetails]);
 
   useEffect(() => {
     messageApi.destroy();
     if (isLoading) {
       messageApi.open({
-        type: 'loading',
-        content: 'Transaction is Pending...',
+        type: "loading",
+        content: "Transaction is Pending...",
         duration: 0,
-      })
+      });
     }
-  }, [isLoading])
+  }, [isLoading]);
 
   useEffect(() => {
     messageApi.destroy();
-    if (isSuccess){
+    if (isSuccess) {
       messageApi.open({
-        type: 'success',
-        content: 'Transaction Successful!',
+        type: "success",
+        content: "Transaction Successful",
         duration: 1.5,
-      })
-    }
-    else if(txDetails.to){
+      });
+    } else if (txDetails.to) {
       messageApi.open({
-        type: 'error',
-        content: 'Transaction Failed!',
+        type: "error",
+        content: "Transaction Failed",
         duration: 1.5,
-      })
+      });
     }
-  }, [isSuccess])
+  }, [isSuccess]);
 
   const settings = (
     <>
       <div>Slippage Tolerance</div>
-      <div>
-        <Radio.Group value={slippage} onChange={handleSlippageChange}>
-          <Radio.Button value={0.5}>0.5%</Radio.Button>
-          <Radio.Button value={2.5}>2.5%</Radio.Button>
-          <Radio.Button value={5}>5%</Radio.Button>
-        </Radio.Group>
-      </div>
+      <Radio.Group value={slippage} onChange={handleSlippageChange}>
+        <Radio.Button value={0.5}>0.5%</Radio.Button>
+        <Radio.Button value={2.5}>2.5%</Radio.Button>
+        <Radio.Button value={5}>5.0%</Radio.Button>
+      </Radio.Group>
     </>
-  )
+  );
 
   return (
     <>
       {contextHolder}
-      <Modal open={isOpen} footer={null} onCancel={() => setIsOpen(false)} title="Select a token" >
-        <div className='modalContet'>
+      <Modal open={isOpen} footer={null} onCancel={() => setIsOpen(false)} title="Select a token">
+        <div className="modalContent">
           {tokenList?.map((e, i) => {
             return (
-              <div
-                className='tokenChoice'
-                key={i}
-                onClick={() => { modifyToken(i) }}
-              >
-                <img src={e.img} alt={e.ticker} className='tokenLogo' />
-                <div className='tokenChoiceNames'>
-                  <div className='tokenName'>{e.name}</div>
-                  <div className='tokenTicker'>{e.ticker}</div>
+              <div className="tokenChoice" key={i} onClick={() => modifyToken(i)}>
+                <img src={e.img} alt={e.ticker} className="tokenLogo" />
+                <div className="tokenChoiceNames">
+                  <div className="tokenName">{e.name}</div>
+                  <div className="tokenTicker">{e.ticker}</div>
                 </div>
               </div>
             );
           })}
         </div>
       </Modal>
-      <div className='tradeBox' >
-        <div className='tradeBoxHeader'>
+      <div className="tradeBox">
+        <div className="tradeBoxHeader">
           <h4>Swap</h4>
-          <Popover title="Settings" trigger="click" placement='bottomRight' content={settings} >
-            <SettingOutlined className='cog'></SettingOutlined>
+          <Popover content={settings} title="Settings" trigger="click" placement="bottomRight">
+            <SettingOutlined className="cog" />
           </Popover>
         </div>
-        <div className='inputs'>
-          <Input placeholder='0' value={tokenOneAmount} onChange={changeAmount} disabled={!prices}></Input>
-          <Input placeholder='0' value={tokenTwoAmount} disabled={true}></Input>
-          <div className='switchButton' onClick={switchTokens}>
-            <ArrowDownOutlined className='switchArrow'></ArrowDownOutlined>
+        <div className="inputs">
+          <Input placeholder="0" value={tokenOneAmount} onChange={changeAmount} disabled={!prices} />
+          <Input placeholder="0" value={tokenTwoAmount} disabled={true} />
+          <div className="switchButton" onClick={switchTokens}>
+            <ArrowDownOutlined className="switchArrow" />
           </div>
-          <div className='assetOne' onClick={() => openModal(1)}>
-            <img src={tokenOne.img} alt='assetOneLogo' className='assetLogo' />
+          <div className="assetOne" onClick={() => openModal(1)}>
+            <img src={tokenOne.img} alt="assetOneLogo" className="assetLogo" />
             {tokenOne.ticker}
-            <DownOutlined></DownOutlined>
+            <DownOutlined />
           </div>
-
-          <div className='assetTwo' onClick={() => openModal(2)}>
-            <img src={tokenTwo.img} alt='assetTwoLogo' className='assetLogo' />
+          <div className="assetTwo" onClick={() => openModal(2)}>
+            <img src={tokenTwo.img} alt="assetTwoLogo" className="assetLogo" />
             {tokenTwo.ticker}
-            <DownOutlined></DownOutlined>
+            <DownOutlined />
           </div>
         </div>
-        <div className='swapButton' disabled={!tokenOneAmount || !isConnected} onClick={fetchDexSwap}>Swap</div>
+        <div
+          className="swapButton"
+          disabled={!tokenOneAmount || !isConnected}
+          onClick={fetchDexSwap}
+        >
+          Swap
+        </div>
       </div>
     </>
-
-  )
+  );
 }
 
-export default Swap
+export default Swap;
